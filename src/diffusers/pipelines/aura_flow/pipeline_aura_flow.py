@@ -659,7 +659,10 @@ class AuraFlowPipeline(DiffusionPipeline, AuraFlowLoraLoaderMixin):
             needs_upcasting = self.vae.dtype == torch.float16 and self.vae.config.force_upcast
             if needs_upcasting:
                 self.upcast_vae()
-                latents = latents.to(next(iter(self.vae.post_quant_conv.parameters())).dtype)
+            # cast latents to the VAE dtype unconditionally: upcast_vae() casts the VAE to
+            # float32 in place, so on a subsequent call needs_upcasting is False and the
+            # latents would otherwise stay float16 and mismatch the (now float32) VAE.
+            latents = latents.to(next(iter(self.vae.post_quant_conv.parameters())).dtype)
             image = self.vae.decode(latents / self.vae.config.scaling_factor, return_dict=False)[0]
             image = self.image_processor.postprocess(image, output_type=output_type)
 
